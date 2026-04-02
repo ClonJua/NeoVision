@@ -7,6 +7,12 @@ import com.neovision.auth.dto.RegistroRequest;
 import com.neovision.auth.jwt.JwtService;
 import com.neovision.clinico.entity.Paciente;
 import com.neovision.clinico.repository.PacienteRepository;
+import com.neovision.common.exception.AutenticacionMicrosoftException;
+import com.neovision.common.exception.CorreoYaRegistradoException;
+import com.neovision.common.exception.CredencialesInvalidasException;
+import com.neovision.common.exception.RolNoEncontradoException;
+import com.neovision.common.exception.UsuarioInactivoException;
+import com.neovision.common.exception.UsuarioNoRegistradoException;
 import com.neovision.usuario.entity.Rol;
 import com.neovision.usuario.entity.Usuario;
 import com.neovision.usuario.repository.RolRepository;
@@ -43,18 +49,18 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public AuthResponse login(LoginRequest request) {
         Usuario usuario = usuarioRepository.findByCorreo(request.getCorreo())
-                .orElseThrow(() -> new RuntimeException("Credenciales inválidas"));
+                .orElseThrow(() -> new CredencialesInvalidasException("Correo o contraseña inválidos"));
 
         if (usuario.getContrasena() == null) {
-            throw new RuntimeException("Este usuario debe autenticarse con Microsoft");
+            throw new AutenticacionMicrosoftException("Este usuario debe autenticarse con Microsoft");
         }
 
         if (!passwordEncoder.matches(request.getContrasena(), usuario.getContrasena())) {
-            throw new RuntimeException("Credenciales inválidas");
+            throw new CredencialesInvalidasException("Correo o contraseña inválidos");
         }
 
         if (!usuario.getEstado()) {
-            throw new RuntimeException("Usuario inactivo");
+            throw new UsuarioInactivoException("Tu usuario ha sido desactivado. Contacta al administrador");
         }
 
         String token = jwtService.generateToken(usuario.getCorreo(), usuario.getRol().getNombreRol());
@@ -64,11 +70,11 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public AuthResponse registro(RegistroRequest request) {
         if (usuarioRepository.existsByCorreo(request.getCorreo())) {
-            throw new RuntimeException("El correo ya está registrado");
+            throw new CorreoYaRegistradoException("El correo " + request.getCorreo() + " ya está registrado");
         }
 
         Rol rolPaciente = rolRepository.findByNombreRol("ROLE_PACIENTE")
-                .orElseThrow(() -> new RuntimeException("Rol PACIENTE no encontrado"));
+                .orElseThrow(() -> new RolNoEncontradoException("Rol PACIENTE no encontrado en el sistema"));
 
         Usuario usuario = new Usuario();
         usuario.setCorreo(request.getCorreo());
@@ -97,15 +103,15 @@ public class AuthServiceImpl implements AuthService {
         String correo = microsoftTokenService.extractEmail(request.getAccessToken());
 
         Usuario usuario = usuarioRepository.findByCorreo(correo)
-                .orElseThrow(() -> new RuntimeException("No estas registrado en el sistema. Contacta a la secretaria."));
+                .orElseThrow(() -> new UsuarioNoRegistradoException("No estás registrado en el sistema. Contacta a la secretaría"));
 
         if (!usuario.getEstado()) {
-            throw new RuntimeException("Usuario inactivo");
+            throw new UsuarioInactivoException("Tu usuario ha sido desactivado. Contacta al administrador");
         }
 
         String rol = usuario.getRol().getNombreRol();
         if (rol.equals("ROLE_PACIENTE")) {
-            throw new RuntimeException("Los pacientes deben iniciar sesion con correo y contrasena");
+            throw new AutenticacionMicrosoftException("Los pacientes deben iniciar sesión con correo y contraseña");
         }
 
         String token = jwtService.generateToken(usuario.getCorreo(), rol);
