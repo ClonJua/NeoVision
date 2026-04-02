@@ -27,6 +27,9 @@ public class RegistroRequest {
     @NotBlank(message = "El tipo de documento es obligatorio")
     private String tipoDocumento;
 
+    @NotBlank(message = "El numero de documento es obligatorio")
+    private String numeroDocumento;
+
     @NotBlank(message = "La fecha de nacimiento es obligatoria")
     private String fechaNacimiento;
 

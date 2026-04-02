@@ -2,6 +2,7 @@ package com.neovision.auth.controller;
 
 import com.neovision.auth.dto.AuthResponse;
 import com.neovision.auth.dto.LoginRequest;
+import com.neovision.auth.dto.MicrosoftLoginRequest;
 import com.neovision.auth.dto.RegistroRequest;
 import com.neovision.auth.service.AuthService;
 import com.neovision.common.dto.ApiResponse;
@@ -32,5 +33,12 @@ public class AuthController {
     public ResponseEntity<ApiResponse<AuthResponse>> registro(@Valid @RequestBody RegistroRequest request) {
         AuthResponse response = authService.registro(request);
         return ResponseEntity.ok(ApiResponse.ok("Registro exitoso", response));
+    }
+
+    @PostMapping("/microsoft")
+    public ResponseEntity<ApiResponse<AuthResponse>> loginMicrosoft(
+            @Valid @RequestBody MicrosoftLoginRequest request) {
+        AuthResponse response = authService.loginMicrosoft(request);
+        return ResponseEntity.ok(ApiResponse.ok("Login institucional exitoso", response));
     }
 }

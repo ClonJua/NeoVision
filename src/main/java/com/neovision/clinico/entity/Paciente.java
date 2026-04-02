@@ -39,6 +39,9 @@ public class Paciente {
     @Column(name = "tipo_documento", nullable = false, length = 20)
     private String tipoDocumento;
 
+    @Column(name = "numero_documento", nullable = false, length = 30)
+    private String numeroDocumento;
+
     @Column(name = "fecha_nacimiento", nullable = false)
     private LocalDate fechaNacimiento;
 
