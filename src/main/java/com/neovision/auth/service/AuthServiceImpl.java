@@ -21,6 +21,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.Period;
 
 @Service
 public class AuthServiceImpl implements AuthService {
@@ -73,6 +74,17 @@ public class AuthServiceImpl implements AuthService {
             throw new CorreoYaRegistradoException("El correo " + request.getCorreo() + " ya está registrado");
         }
 
+        // Validar telefono colombiano (10 digitos, empieza por 3)
+        validarTelefono(request.getTelefono());
+
+        // Validar tipo de documento vs edad
+        LocalDate nacimiento = LocalDate.parse(request.getFechaNacimiento());
+        validarTipoDocumentoEdad(request.getTipoDocumento(), nacimiento);
+
+        // Validar que no tenga caracteres peligrosos
+        validarTextoSeguro(request.getNombre(), "nombre");
+        validarTextoSeguro(request.getApellido(), "apellido");
+
         Rol rolPaciente = rolRepository.findByNombreRol("ROLE_PACIENTE")
                 .orElseThrow(() -> new RolNoEncontradoException("Rol PACIENTE no encontrado en el sistema"));
 
@@ -116,5 +128,42 @@ public class AuthServiceImpl implements AuthService {
 
         String token = jwtService.generateToken(usuario.getCorreo(), rol);
         return new AuthResponse(token, rol, usuario.getCorreo());
+    }
+
+    // ===================== VALIDACIONES =====================
+
+    private void validarTelefono(String telefono) {
+        if (telefono == null || !telefono.matches("^3\\d{9}$")) {
+            throw new RuntimeException("El telefono debe ser un celular colombiano valido (10 digitos, inicia con 3)");
+        }
+    }
+
+    private void validarTipoDocumentoEdad(String tipoDoc, LocalDate nacimiento) {
+        int edad = Period.between(nacimiento, LocalDate.now()).getYears();
+        switch (tipoDoc) {
+            case "CC" -> {
+                if (edad < 18) throw new RuntimeException("Cedula de Ciudadania solo aplica para mayores de 18 anos");
+            }
+            case "TI" -> {
+                if (edad < 7 || edad > 17) throw new RuntimeException("Tarjeta de Identidad aplica para personas entre 7 y 17 anos");
+            }
+            case "RC" -> {
+                if (edad >= 7) throw new RuntimeException("Registro Civil aplica para menores de 7 anos");
+            }
+            case "CE" -> {
+                if (edad < 18) throw new RuntimeException("Cedula de Extranjeria solo aplica para mayores de 18 anos");
+            }
+            case "PA" -> { /* Pasaporte: cualquier edad */ }
+            default -> throw new RuntimeException("Tipo de documento no valido. Use: CC, TI, RC, CE o PA");
+        }
+    }
+
+    private void validarTextoSeguro(String texto, String campo) {
+        if (texto != null && texto.matches(".*[<>{}\\[\\]\\\\].*")) {
+            throw new RuntimeException("El campo " + campo + " contiene caracteres no permitidos");
+        }
+        if (texto != null && texto.matches(".*[\\x{1F600}-\\x{1F9FF}\\x{2600}-\\x{27BF}\\x{1F300}-\\x{1F5FF}].*")) {
+            throw new RuntimeException("El campo " + campo + " no puede contener emojis");
+        }
     }
 }
